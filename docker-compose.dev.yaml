@@ -1,0 +1,50 @@
+version: '3'
+
+networks:
+  node-nginx:
+    driver: bridge
+
+services:
+  node:
+    image: mfabiodias/codeeducation-node
+    build:
+      context: ./node
+      dockerfile: Dockerfile
+    container_name: node
+    entrypoint: dockerize -wait tcp://db:3306 -timeout 20s docker-entrypoint.sh
+    tty: true
+    volumes:
+      - ./node:/home/node/app
+    networks:
+      - node-nginx
+    restart: always
+    depends_on:
+      - db
+
+  nginx:
+    image: mfabiodias/codeeducation-nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: nginx
+    tty: true
+    networks:
+      - node-nginx
+    ports:
+      - 8080:80
+    depends_on:
+      - node
+
+  db:
+    image: mysql:5.7
+    command: --innodb-use-native-aio=0
+    container_name: db
+    restart: always
+    tty: true
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=nodedb
+      - MYSQL_ROOT_PASSWORD=root
+    networks:
+      - node-nginx
